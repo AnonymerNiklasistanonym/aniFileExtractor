@@ -17,7 +17,7 @@ cmake --build build_cmake
 
 # Build the executable with gcc
 mkdir -p build_gcc
-g++ aniFileExtractor.cpp -I ./ -std=c++20 -o build_gcc/aniFileExtractor
+g++ aniFileExtractor.cpp -I ./ -std=c++2a -o build_gcc/aniFileExtractor
 
 ./build_gcc/aniFileExtractor test/test.ani test/out_test_images
 ./build_gcc/aniFileExtractor ani test/test.ani

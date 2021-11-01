@@ -467,6 +467,8 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
             std::cout << "| " << padRightNumber(i, 9,
                                                 ' ') << "| 4    | chunk type  | '" << chunkDataType << "'" << std::endl;
             i += 4;
+            std::cout << "| " << padRightNumber(i, 9, ' ') << "| " << padRightNumber(chunkSize, 4,
+                      ' ') << " | chunk data  | TODO" << std::endl;
             i += chunkSize;
             if (i + 4 < data.size()) {
                 std::cout << "| " << padRightNumber(i, 9,
@@ -484,36 +486,58 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
     }
 }
 
-void printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
-                                        const std::size_t start, const int directoryNumber)
+struct PngDirectoryHeaderInformation {
+    uint8_t width;
+    uint8_t height;
+    uint8_t colorCount;
+    uint16_t planes;
+    uint16_t bitCount;
+    uint16_t bytesInRes;
+    uint16_t imageOffset;
+};
+
+PngDirectoryHeaderInformation printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
+        const std::size_t start, const int directoryNumber)
 {
-    std::cout << "|" << padRight("Position", 9,
-                                 ' ') << "| Size | Purpose     | Content [ico directory header #" <<
+    PngDirectoryHeaderInformation pngDirectoryHeaderInformation;
+    std::cout << "| " << padRight("Position", 9,
+                                  ' ') << "| Size   | Purpose        | Content [ico directory header #" <<
               directoryNumber << "]" << std::endl;
-    std::cout << "|" << padRightNumber(start + 0, 9,
-                                       ' ') << "| 1    | width       | '" << static_cast<int>(data.at(
-                                               start + 0)) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 1, 9,
-                                       ' ') << "| 1    | height      | '" << static_cast<int>(data.at(
-                                               start + 1)) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 2, 9,
-                                       ' ') << "| 1    | colorCount  | '" << static_cast<int>(data.at(
-                                               start + 2)) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 3, 9,
-                                       ' ') << "| 1    | reserved    | '" << static_cast<int>(data.at(
-                                               start + 3)) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 4, 9,
-                                       ' ') << "| 2    | planes      | '" << read16BitUnsignedIntegerLE(data,
-                                               start + 4) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 6, 9,
-                                       ' ') << "| 2    | bitCount    | '" << read16BitUnsignedIntegerLE(data,
-                                               start + 6) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 8, 9,
-                                       ' ') << "| 4    | bytesInRes  | '" << read32BitUnsignedIntegerLE(data,
-                                               start + 8) << "'" << std::endl;
-    const auto imageOffset = read16BitUnsignedIntegerLE(data, start + 12);
-    std::cout << "|" << padRightNumber(start + 12, 9,
-                                       ' ') << "| 4    | imageOffset | '" << imageOffset << "'" << std::endl;
+    pngDirectoryHeaderInformation.width = data.at(start + 0);
+    std::cout << "| " << padRightNumber(start + 0, 9,
+                                        ' ') << "| 1      | width          | '" << static_cast<int>(pngDirectoryHeaderInformation.width) <<
+              "'"
+              << std::endl;
+    pngDirectoryHeaderInformation.height = data.at(start + 1);
+    std::cout << "| " << padRightNumber(start + 1, 9,
+                                        ' ') << "| 1      | height         | '" << static_cast<int>(pngDirectoryHeaderInformation.height) <<
+              "'"
+              << std::endl;
+    pngDirectoryHeaderInformation.colorCount = data.at(start + 2);
+    std::cout << "| " << padRightNumber(start + 2, 9,
+                                        ' ') << "| 1      | colorCount     | '" << static_cast<int>
+              (pngDirectoryHeaderInformation.colorCount)
+              <<
+              "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 3, 9,
+                                        ' ') << "| 1      | reserved       | '" << static_cast<int>(data.at(
+                                                start + 3)) << "'" << std::endl;
+    pngDirectoryHeaderInformation.planes = read16BitUnsignedIntegerLE(data, start + 4);
+    std::cout << "| " << padRightNumber(start + 4, 9,
+                                        ' ') << "| 2      | planes         | '" << pngDirectoryHeaderInformation.planes << "'" << std::endl;
+    pngDirectoryHeaderInformation.bitCount = read16BitUnsignedIntegerLE(data, start + 6);
+    std::cout << "| " << padRightNumber(start + 6, 9,
+                                        ' ') << "| 2      | bitCount       | '" << pngDirectoryHeaderInformation.bitCount << "'" <<
+              std::endl;
+    pngDirectoryHeaderInformation.bytesInRes = read16BitUnsignedIntegerLE(data, start + 8);
+    std::cout << "| " << padRightNumber(start + 8, 9,
+                                        ' ') << "| 4      | bytesInRes     | '" << pngDirectoryHeaderInformation.bytesInRes << "'" <<
+              std::endl;
+    pngDirectoryHeaderInformation.imageOffset = read16BitUnsignedIntegerLE(data, start + 12);
+    std::cout << "| " << padRightNumber(start + 12, 9,
+                                        ' ') << "| 4      | imageOffset    | '" << pngDirectoryHeaderInformation.imageOffset << "'" <<
+              std::endl;
+    return pngDirectoryHeaderInformation;
 }
 
 /**
@@ -556,19 +580,25 @@ void printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
 void printIcoInformation(const std::vector<uint8_t> &data, const std::size_t start)
 {
     // The default header
-    std::cout << "|" << padRight("Position", 9,
-                                 ' ') << "| Size | Purpose     | Content [ico file header]" << std::endl;
-    std::cout << "|" << padRightNumber(start + 0, 9,
-                                       ' ') << "| 2    | reserved    | '" << read16BitUnsignedIntegerLE(data,
-                                               0) << "'" << std::endl;
-    std::cout << "|" << padRightNumber(start + 2, 9,
-                                       ' ') << "| 2    | image type  | '" << read16BitUnsignedIntegerLE(data,
-                                               2) << "'" << std::endl;
+    std::cout << "| " << padRight("Position", 9,
+                                  ' ') << "| Size   | Purpose        | Content [ico file header]" << std::endl;
+    std::cout << "| " << padRightNumber(start + 0, 9,
+                                        ' ') << "| 2      | reserved       | '" << read16BitUnsignedIntegerLE(data,
+                                                0) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 2, 9,
+                                        ' ') << "| 2      | image type     | '" << read16BitUnsignedIntegerLE(data,
+                                                2) << "'" << std::endl;
     const auto imageCount = read16BitUnsignedIntegerLE(data, 4);
-    std::cout << "|" << padRightNumber(start + 4, 9,
-                                       ' ') << "| 2    | image #     | '" << imageCount << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 4, 9,
+                                        ' ') << "| 2      | image #        | '" << imageCount << "'" << std::endl;
     // The directory headers
+    std::vector<PngDirectoryHeaderInformation> pngDirectoryHeaders(imageCount);
     for (int i = 0; i < imageCount; i++) {
-        printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);
+        pngDirectoryHeaders.at(i) = printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);
+    }
+    for (std::size_t i = 0; i < pngDirectoryHeaders.size(); i++) {
+        std::cout << "| " << padRightNumber(start + pngDirectoryHeaders.at(i).imageOffset, 9,
+                                            ' ') << "| " << padRightNumber(start + pngDirectoryHeaders.at(i).bytesInRes, 6,
+                                                    ' ') << " | image data #" << padRightNumber(i, 2, ' ') << " | TODO" << std::endl;
     }
 }

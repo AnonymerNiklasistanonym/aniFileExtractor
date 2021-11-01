@@ -6,7 +6,8 @@ set -x
 set -e
 
 # Build the executable with CMake
-cmake -S . -B build_cmake #-DCHECK_CODE=ON -DFORMAT_CODE=ON
+cmake -S . -B build_cmake
+#-DCHECK_CODE=ON -DFORMAT_CODE=ON
 cmake --build build_cmake
 
 ./build_cmake/aniFileExtractor test/test.ani test/out_test_images

@@ -34,8 +34,8 @@ std::shared_ptr<std::vector<uint8_t>> readBinaryFile(const std::filesystem::path
     if (!binaryInputFile.is_open()) {
         throw std::runtime_error("The file " + filePath.string() + " could not be opened");
     }
-    //binaryInputFile.read(reinterpret_cast<char *>(buffer.data()), fileSize);
-    binaryInputFile.read(reinterpret_cast<char *>(buffer->data()), fileSize);
+    //binaryInputFile.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
+    binaryInputFile.read(reinterpret_cast<char *>(buffer->data()), buffer->size());
     binaryInputFile.close();
     if constexpr(debug) {
         std::cout << "> " << filePath << " (size=" << fileSize << ") was successfully read" << std::endl;
@@ -148,7 +148,44 @@ struct AniFileInformation {
     std::string riffContainerType;
 };
 
-AniFileInformation getAniFileInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
+/**
+ * RIFF/.ani file format:
+ *
+ * Start of the file should be this to be a valid .ani file:
+ * "RIFF" {4 Bytes=DWORD=length of file} (container type and length)
+ * "ACON" (what does the generic RIFF container represent)
+ * Then in no particular order:
+ * "LIST" {4 Bytes=DWORD=length of list} (TODO - not important?)
+ * "INAM" {4 Bytes=DWORD=length of title} {title data in chars} (the title of the icon)
+ * "IART" {4 Bytes=DWORD=length of author} {author data in chars} (the author of the icon)
+ * "fram" (TODO - not important?)
+ * "icon" {4 Bytes=DWORD=length of icon} {icon data} (TODO - IMPORTANT - WHAT IS THE DATA FORMAT???)
+ * "anih" {4 Bytes=DWORD=length of ANI header (36 bytes)} {Data}
+ *   > {4 Bytes=DWORD=cbSizeOf} (Number of unique Icons in this cursor)
+ *   > {4 Bytes=DWORD=cFrames} (Num bytes in AniHeader)
+ *   > {4 Bytes=DWORD=cSteps} (Number of Blits before the animation cycles)
+ *   > {4 Bytes=DWORD=cx} (reserved, must be zero)
+ *   > {4 Bytes=DWORD=cy} (reserved, must be zero)
+ *   > {4 Bytes=DWORD=cBitCount} (reserved, must be zero)
+ *   > {4 Bytes=DWORD=cPlanes} (reserved, must be zero)
+ *   > {4 Bytes=DWORD=JifRate} (Default Jiffies (1/60th of a second) if rate chunk not present)
+ *   > {4 Bytes=DWORD=flags} (Animation Flag - TODO?)
+ * "rate" {4 Bytes=DWORD=length of rate block} {Data} (TODO - not important?)
+ * "seq " {4 Bytes=DWORD=length of sequence block} {Data} (TODO - not important?)
+ *
+ * Sources are https://www.gdgsoft.com/anituner/help/aniformat.htm which cites a post by R. James Houghtaling
+ * and the website www.wotsit.org by Paul Oliver which is not accessible any more.
+ *
+ * This parser is not a good one.
+ * Without having any information about the actual .ani file format and what the differences are between
+ * animated and not animated icons it just checks if it is an animated icon and finds all icon blocks.
+ * If there are multiple INAM/IART blocks or something similar this parser WILL FAIL!!!!!
+ *
+ * @brief Read out all the information from a given `.ani` file binary data vector
+ * @param data The `.ani` file binary data vector
+ * @return Information object that contains all read data
+ */
+AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
 {
     AniFileInformation aniFileInformation;
     // Check for RIFF at the begin of the data

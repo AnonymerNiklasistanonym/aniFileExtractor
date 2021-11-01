@@ -41,7 +41,7 @@ int main(int argc, const char **argv)
                 std::filesystem::create_directory(outDir);
             }
             const auto dataBytes = readBinaryFile(filePath);
-            const auto aniFileInformation = getAniFileInformation(dataBytes);
+            const auto aniFileInformation = readAniFileInformation(dataBytes);
             for (std::size_t iconCounter = 0; iconCounter < aniFileInformation.icons.size(); iconCounter++) {
                 const auto pngDataNew = aniFileInformation.icons.at(iconCounter);
                 writeBinaryFile(basenameFilePath.string() + "_" + std::to_string(iconCounter) + ".png", pngDataNew);

@@ -19,13 +19,13 @@ int main(int argc, const char **argv)
             filePathString = argv[2];
             const auto dataBytes = readBinaryFile(filePathString);
             // Print ico information
-            printIcoInformation(dataBytes);
+            printIcoInformation(dataBytes, 0);
         }
         else  if (filePathString == "png") {
             filePathString = argv[2];
             const auto dataBytes = readBinaryFile(filePathString);
             // Print png information
-            printPngInformation(dataBytes);
+            printPngInformation(dataBytes, 0);
         }
         else {
             // Assume that the images and other information should be extracted

@@ -9,6 +9,7 @@
 #include <string>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 /**
  * Output debug comments
@@ -380,6 +381,32 @@ inline void endianSwap(unsigned int &x)
 }
 
 /**
+ * @brief Pad a string (right) with characters
+ */
+std::string padRight(const std::string &stringToPad, const std::size_t padLength,
+                     const char padCharacter)
+{
+    std::ostringstream ss;
+    ss << stringToPad;
+    for (std::size_t i = stringToPad.length(); i < padLength; i++) {
+        ss << padCharacter;
+    }
+    return ss.str();
+}
+
+/**
+ * @brief Pad a number or anything that can be put into a string stream (right) with characters
+ */
+template<typename U>
+std::string padRightNumber(const U &numberToPad, const std::size_t padLength,
+                           const char padCharacter)
+{
+    std::ostringstream ss;
+    ss << numberToPad;
+    return padRight(ss.str(), padLength, padCharacter);
+}
+
+/**
  * Sources:
  * - https://docs.fileformat.com/image/png/
  *
@@ -390,48 +417,62 @@ inline void endianSwap(unsigned int &x)
  *   > {chunkLength Bytes=chunkData}
  *   > {4 Bytes=crc}
  */
-void printPngInformation(const std::vector<uint8_t> &data)
+void printPngInformation(const std::vector<uint8_t> &data, const std::size_t start)
 {
-    if (8 >= data.size()) {
+    if (start + 8 >= data.size()) {
         std::cout << "> No png header found (too small)" << std::endl;
         return;
     }
-    if (!(data.at(0) == 137 && data.at(1) == 80 && data.at(2) == 78 && data.at(3) == 71 &&
-          data.at(4) == 13 && data.at(5) == 10 && data.at(6) == 26 && data.at(7) == 10)) {
+    if (!(data.at(start + 0) == 137 && data.at(start + 1) == 80 && data.at(start + 2) == 78 &&
+          data.at(start + 3) == 71 &&
+          data.at(start + 4) == 13 && data.at(start + 5) == 10 && data.at(start + 6) == 26 &&
+          data.at(start + 7) == 10)) {
         std::cout << "> No png header found (leading 8 bytes incorrect)" << std::endl;
         return;
     }
-    std::cout <<             "Position | Size | Purpose     | Content [png data header]" << std::endl;
-    std::cout << 0  << "       | 1    | 137         | '" << static_cast<int>(data.at(
-                  0)) << "'" << std::endl;
-    std::cout << 1  << "       | 1    | 80          | '" << static_cast<int>(data.at(
-                  1)) << "'" << std::endl;
-    std::cout << 2  << "       | 1    | 78          | '" << static_cast<int>(data.at(
-                  2)) << "'" << std::endl;
-    std::cout << 3  << "       | 1    | 71          | '" << static_cast<int>(data.at(
-                  3)) << "'" << std::endl;
-    std::cout << 4  << "       | 1    | 13          | '" << static_cast<int>(data.at(
-                  4)) << "'" << std::endl;
-    std::cout << 5  << "       | 1    | 10          | '" << static_cast<int>(data.at(
-                  5)) << "'" << std::endl;
-    std::cout << 6  << "       | 1    | 26          | '" << static_cast<int>(data.at(
-                  6)) << "'" << std::endl;
-    std::cout << 7  << "       | 1    | 10          | '" << static_cast<int>(data.at(
-                  7)) << "'" << std::endl;
-    for (std::size_t i = 8; i < data.size(); i++) {
+    std::cout << "| " << padRight("Position", 9,
+                                  ' ') << "| Size | Purpose     | Content [png data header]" << std::endl;
+    std::cout << "| " << padRightNumber(start + 0, 9,
+                                        ' ') << "| 1    | 137         | '" << static_cast<int>(data.at(
+                                                start + 0)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 1, 9,
+                                        ' ') << "| 1    | 80          | '" << static_cast<int>(data.at(
+                                                start + 1)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 2, 9,
+                                        ' ') << "| 1    | 78          | '" << static_cast<int>(data.at(
+                                                start + 2)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 3, 9,
+                                        ' ') << "| 1    | 71          | '" << static_cast<int>(data.at(
+                                                start + 3)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 4, 9,
+                                        ' ') << "| 1    | 13          | '" << static_cast<int>(data.at(
+                                                start + 4)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 5, 9,
+                                        ' ') << "| 1    | 10          | '" << static_cast<int>(data.at(
+                                                start + 5)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 6, 9,
+                                        ' ') << "| 1    | 26          | '" << static_cast<int>(data.at(
+                                                start + 6)) << "'" << std::endl;
+    std::cout << "| " << padRightNumber(start + 7, 9,
+                                        ' ') << "| 1    | 10          | '" << static_cast<int>(data.at(
+                                                start + 7)) << "'" << std::endl;
+    for (std::size_t i = start + 8; i < data.size(); i++) {
         if (i + 8 < data.size()) {
             auto chunkSize = static_cast<unsigned int>(read32BitUnsignedIntegerLE(data, i));
             endianSwap(chunkSize);
             const auto chunkDataType = readCharString(data, i + 4, 4);
-            std::cout << i  <<     "       | 4    | chunk size  | '" << chunkSize << "'" << std::endl;
+            std::cout << "| " << padRightNumber(i, 9,
+                                                ' ') << "| 4    | chunk size  | '" << chunkSize << "'" << std::endl;
             i += 4;
-            std::cout << i  <<     "       | 4    | chunk type  | '" << chunkDataType << "'" << std::endl;
+            std::cout << "| " << padRightNumber(i, 9,
+                                                ' ') << "| 4    | chunk type  | '" << chunkDataType << "'" << std::endl;
             i += 4;
             i += chunkSize;
             if (i + 4 < data.size()) {
-                std::cout << i  <<     "       | 4    | crc         | '" << static_cast<int>(data.at(
-                              i)) << " " << static_cast<int>(data.at(i + 1)) << " " << static_cast<int>(data.at(
-                                          i + 2)) << " " << static_cast<int>(data.at(i + 3)) << "'" << std::endl;
+                std::cout << "| " << padRightNumber(i, 9,
+                                                    ' ') << "| 4    | crc         | '" << static_cast<int>(data.at(
+                                                            i)) << " " << static_cast<int>(data.at(i + 1)) << " " << static_cast<int>(data.at(
+                                                                    i + 2)) << " " << static_cast<int>(data.at(i + 3)) << "'" << std::endl;
                 i += 4;
             }
             else if (chunkDataType != "IEND") {
@@ -446,24 +487,33 @@ void printPngInformation(const std::vector<uint8_t> &data)
 void printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
                                         const std::size_t start, const int directoryNumber)
 {
-    std::cout <<             "Position | Size | Purpose     | Content [ico directory header #" <<
+    std::cout << "|" << padRight("Position", 9,
+                                 ' ') << "| Size | Purpose     | Content [ico directory header #" <<
               directoryNumber << "]" << std::endl;
-    std::cout << start + 0  << "       | 1    | width       | '" << static_cast<int>(data.at(
-                  start + 0)) << "'" << std::endl;
-    std::cout << start + 1  << "       | 1    | height      | '" << static_cast<int>(data.at(
-                  start + 1)) << "'" << std::endl;
-    std::cout << start + 2  << "       | 1    | colorCount  | '" << static_cast<int>(data.at(
-                  start + 2)) << "'" << std::endl;
-    std::cout << start + 3  << "       | 1    | reserved    | '" << static_cast<int>(data.at(
-                  start + 3)) << "'" << std::endl;
-    std::cout << start + 4  << "       | 2    | planes      | '" << read16BitUnsignedIntegerLE(data,
-              start + 4) << "'" << std::endl;
-    std::cout << start + 6  << "       | 2    | bitCount    | '" << read16BitUnsignedIntegerLE(data,
-              start + 6) << "'" << std::endl;
-    std::cout << start + 8  << "       | 4    | bytesInRes  | '" << read32BitUnsignedIntegerLE(data,
-              start + 8) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 0, 9,
+                                       ' ') << "| 1    | width       | '" << static_cast<int>(data.at(
+                                               start + 0)) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 1, 9,
+                                       ' ') << "| 1    | height      | '" << static_cast<int>(data.at(
+                                               start + 1)) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 2, 9,
+                                       ' ') << "| 1    | colorCount  | '" << static_cast<int>(data.at(
+                                               start + 2)) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 3, 9,
+                                       ' ') << "| 1    | reserved    | '" << static_cast<int>(data.at(
+                                               start + 3)) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 4, 9,
+                                       ' ') << "| 2    | planes      | '" << read16BitUnsignedIntegerLE(data,
+                                               start + 4) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 6, 9,
+                                       ' ') << "| 2    | bitCount    | '" << read16BitUnsignedIntegerLE(data,
+                                               start + 6) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 8, 9,
+                                       ' ') << "| 4    | bytesInRes  | '" << read32BitUnsignedIntegerLE(data,
+                                               start + 8) << "'" << std::endl;
     const auto imageOffset = read16BitUnsignedIntegerLE(data, start + 12);
-    std::cout << start + 12 << "       | 4    | imageOffset | '" << imageOffset << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 12, 9,
+                                       ' ') << "| 4    | imageOffset | '" << imageOffset << "'" << std::endl;
 }
 
 /**
@@ -503,16 +553,20 @@ void printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
  * @brief printIcoDataHeader
  * @param data
  */
-void printIcoInformation(const std::vector<uint8_t> &data)
+void printIcoInformation(const std::vector<uint8_t> &data, const std::size_t start)
 {
     // The default header
-    std::cout << "Position | Size | Purpose     | Content [ico file header]" << std::endl;
-    std::cout << "0        | 2    | reserved    | '" << read16BitUnsignedIntegerLE(data,
-              0) << "'" << std::endl;
-    std::cout << "2        | 2    | image type  | '" << read16BitUnsignedIntegerLE(data,
-              2) << "'" << std::endl;
+    std::cout << "|" << padRight("Position", 9,
+                                 ' ') << "| Size | Purpose     | Content [ico file header]" << std::endl;
+    std::cout << "|" << padRightNumber(start + 0, 9,
+                                       ' ') << "| 2    | reserved    | '" << read16BitUnsignedIntegerLE(data,
+                                               0) << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 2, 9,
+                                       ' ') << "| 2    | image type  | '" << read16BitUnsignedIntegerLE(data,
+                                               2) << "'" << std::endl;
     const auto imageCount = read16BitUnsignedIntegerLE(data, 4);
-    std::cout << "4        | 2    | image #     | '" << imageCount << "'" << std::endl;
+    std::cout << "|" << padRightNumber(start + 4, 9,
+                                       ' ') << "| 2    | image #     | '" << imageCount << "'" << std::endl;
     // The directory headers
     for (int i = 0; i < imageCount; i++) {
         printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);

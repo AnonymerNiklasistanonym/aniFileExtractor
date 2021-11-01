@@ -1,8 +1,8 @@
 // Inspired by https://github.com/Mastermindzh/Scripts/blob/master/c%2B%2B/ani2png.c
 
 #include <filesystem>
+#include <array>
 #include <vector>
-#include <memory>
 #include <cstdint>
 #include <optional>
 #include <fstream>
@@ -20,22 +20,19 @@ constexpr bool debug = true;
  * @param filePath The filepath of the binary file to be read
  * @return Binary data of file
  */
-std::shared_ptr<std::vector<uint8_t>> readBinaryFile(const std::filesystem::path &filePath)
+std::vector<uint8_t> readBinaryFile(const std::filesystem::path &filePath)
 {
     if (!std::filesystem::exists(filePath)) {
         throw std::runtime_error("The file " + filePath.string() + " was not found");
     }
     const auto fileSize = std::filesystem::file_size(filePath);
-    //std::vector<uint8_t> buffer(fileSize);
-    //buffer.reserve(fileSize);
-    auto buffer = std::make_shared<std::vector<uint8_t>>(fileSize);
-    buffer->reserve(fileSize);
+    std::vector<uint8_t> buffer(fileSize);
+    buffer.reserve(fileSize);
     std::ifstream binaryInputFile(filePath, std::ios::in | std::ios::binary);
     if (!binaryInputFile.is_open()) {
         throw std::runtime_error("The file " + filePath.string() + " could not be opened");
     }
-    //binaryInputFile.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
-    binaryInputFile.read(reinterpret_cast<char *>(buffer->data()), buffer->size());
+    binaryInputFile.read(reinterpret_cast<char *>(buffer.data()), buffer.size());
     binaryInputFile.close();
     if constexpr(debug) {
         std::cout << "> " << filePath << " (size=" << fileSize << ") was successfully read" << std::endl;
@@ -49,18 +46,18 @@ std::shared_ptr<std::vector<uint8_t>> readBinaryFile(const std::filesystem::path
  * @param data The vector that contains the binary data to be written
  */
 void writeBinaryFile(const std::filesystem::path &filePath,
-                     const std::shared_ptr<std::vector<uint8_t>> &data)
+                     const std::vector<uint8_t> &data)
 {
     std::ofstream binaryOutputFile(filePath, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!binaryOutputFile.is_open()) {
         throw std::runtime_error("The file " + filePath.string() + " could not be opened");
     }
-    for (const auto &entry : *data) {
+    for (const auto &entry : data) {
         binaryOutputFile.write(reinterpret_cast<const char *>(&entry), sizeof(char));
     }
     binaryOutputFile.close();
     if constexpr(debug) {
-        std::cout << "> " << filePath << " (size=" << data->size() << ") was successfully written" <<
+        std::cout << "> " << filePath << " (size=" << data.size() << ") was successfully written" <<
                   std::endl;
     }
 }
@@ -71,12 +68,12 @@ void writeBinaryFile(const std::filesystem::path &filePath,
  * @param start The start index in the vector from which should be read
  * @return A 32 Bit unsigned number
  */
-uint32_t read32BitUnsignedIntegerLE(const std::shared_ptr<std::vector<uint8_t>> &data,
+uint32_t read32BitUnsignedIntegerLE(const std::vector<uint8_t> &data,
                                     const std::size_t start)
 {
     uint32_t number;
-    uint8_t bytes[4] { data->at(start), data->at(start + 1), data->at(start + 2), data->at(start + 3) };
-    std::memcpy(&number, bytes, sizeof(number));
+    std::array<uint8_t, 4> bytes { data.at(start), data.at(start + 1), data.at(start + 2), data.at(start + 3) };
+    std::memcpy(&number, bytes.data(), sizeof(number));
     return number;
 }
 
@@ -86,12 +83,12 @@ uint32_t read32BitUnsignedIntegerLE(const std::shared_ptr<std::vector<uint8_t>> 
  * @param start The start index in the vector from which should be read
  * @return A 16 Bit unsigned number
  */
-uint16_t read16BitUnsignedIntegerLE(const std::shared_ptr<std::vector<uint8_t>> &data,
+uint16_t read16BitUnsignedIntegerLE(const std::vector<uint8_t> &data,
                                     const std::size_t start)
 {
     uint16_t number;
-    uint8_t bytes[2] { data->at(start), data->at(start + 1) };
-    std::memcpy(&number, bytes, sizeof(number));
+    std::array<uint8_t, 2> bytes { data.at(start), data.at(start + 1) };
+    std::memcpy(&number, &bytes, sizeof(number));
     return number;
 }
 
@@ -102,12 +99,12 @@ uint16_t read16BitUnsignedIntegerLE(const std::shared_ptr<std::vector<uint8_t>> 
  * @param length The number of bytes that should be read and the length of the resulting string
  * @return A char string
  */
-std::string readCharString(const std::shared_ptr<std::vector<uint8_t>> &data,
+std::string readCharString(const std::vector<uint8_t> &data,
                            const std::size_t start, const std::size_t length)
 {
-    std::string out = "";
-    for (std::size_t i = start; i < start + length; i++) {
-        out += static_cast<char>(data->at(i));
+    std::string out(length, ' ');
+    for (std::size_t i = 0; i < length; i++) {
+        out.at(i) = static_cast<char>(data.at(start + i));
     }
     return out;
 }
@@ -119,7 +116,7 @@ struct AniFileInformation {
     /**
      * A list of all the contained images (their data blocks)
      */
-    std::vector<std::shared_ptr<std::vector<uint8_t>>> icons = {};
+    std::vector<std::vector<uint8_t>> icons = {};
     /** If existing the content of the art tag */
     std::optional<std::string> art = {};
     /** If existing the content of the name tag */
@@ -128,7 +125,7 @@ struct AniFileInformation {
     uint32_t cbSizeOf;
     /** Number of unique Icons in this cursor */
     uint32_t cFrames;
-    /** Number of Blits before the animation cycles */
+    /** Number of Bits before the animation cycles */
     uint32_t cSteps;
     /** reserved, must be zero */
     uint32_t cx;
@@ -185,11 +182,11 @@ struct AniFileInformation {
  * @param data The `.ani` file binary data vector
  * @return Information object that contains all read data
  */
-AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
+AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
 {
     AniFileInformation aniFileInformation;
     // Check for RIFF at the begin of the data
-    if (8 <= data->size() && readCharString(data, 0, 4) == "RIFF") {
+    if (8 <= data.size() && readCharString(data, 0, 4) == "RIFF") {
         aniFileInformation.riffDataLength = read32BitUnsignedIntegerLE(data, 4);
         if constexpr(debug) {
             std::cout << "> RIFF header was found at " << 0 << std::endl;
@@ -198,7 +195,7 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
     else {
         throw std::runtime_error(".ani data did not start with RIFF container name and length");
     }
-    if (12 <= data->size() && readCharString(data, 8, 4) == "ACON") {
+    if (12 <= data.size() && readCharString(data, 8, 4) == "ACON") {
         aniFileInformation.riffContainerType = "ACON";
         if constexpr(debug) {
             std::cout << "> Found RIFF field 'ACON' at " << 8 << std::endl;
@@ -207,14 +204,14 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
     else {
         throw std::runtime_error(".ani data did not have the ACON field in the RIFF container");
     }
-    for (std::size_t i = 12; i < data->size(); i ++) {
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "INAM") {
+    for (std::size_t i = 12; i < data.size(); i ++) {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "INAM") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'INAM' at " << i << " [length=" << length << ",data='";
             }
             i += 8;
-            if (i + length <= data->size()) {
+            if (i + length <= data.size()) {
                 aniFileInformation.name = readCharString(data, i, length);
                 i += length;
             }
@@ -227,13 +224,13 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "IART") {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "IART") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'IART' at " << i << " [length=" << length << ",data='";
             }
             i += 8;
-            if (i + length <= data->size()) {
+            if (i + length <= data.size()) {
                 aniFileInformation.art = readCharString(data, i, length);
                 i += length;
             }
@@ -246,17 +243,17 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "icon") {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "icon") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'icon' at " << i << " [length=" << length << "]" << std::endl;
             }
             i += 8;
-            if (i + length <= data->size()) {
-                auto iconData = std::make_shared<std::vector<uint8_t>>(length);
-                iconData->reserve(length);
+            if (i + length <= data.size()) {
+                std::vector<uint8_t> iconData(length);
+                iconData.reserve(length);
                 for (std::size_t j = 0; j < length; j++) {
-                    iconData->at(j) = data->at(i + j);
+                    iconData.at(j) = data.at(i + j);
                 }
                 aniFileInformation.icons.push_back(iconData);
                 i += length;
@@ -267,13 +264,13 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "seq ") {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "seq ") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'seq ' at " << i << " [length=" << length << "]" << std::endl;
             }
             i += 8;
-            if (i + length <= data->size()) {
+            if (i + length <= data.size()) {
                 auto seqContent = readCharString(data, i, length);
                 // TODO What is this
                 if constexpr(debug) {
@@ -287,13 +284,13 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "rate") {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "rate") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'rate' at " << i << " [length=" << length << "]" << std::endl;
             }
             i += 8;
-            if (i + length <= data->size()) {
+            if (i + length <= data.size()) {
                 auto seqContent = readCharString(data, i, length);
                 // TODO What is this
                 if constexpr(debug) {
@@ -307,7 +304,7 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && readCharString(data, i, 4) == "anih") {
+        if (i + 8 <= data.size() && readCharString(data, i, 4) == "anih") {
             auto length = read32BitUnsignedIntegerLE(data, i + 4);
             if constexpr(debug) {
                 std::cout << "> Found RIFF field 'anih' at " << i << " [length=" << length << "]" << std::endl;
@@ -316,7 +313,7 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             if (length != 36) {
                 throw std::runtime_error("Unexpected length of 'anih' field " + std::to_string(length) + "!=36");
             }
-            if (i + length <= data->size()) {
+            if (i + length <= data.size()) {
                 aniFileInformation.cbSizeOf = read32BitUnsignedIntegerLE(data, i);
                 i += 4;
                 aniFileInformation.cFrames = read32BitUnsignedIntegerLE(data, i);
@@ -342,9 +339,9 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 8 <= data->size() && static_cast<char>(data->at(i)) == 'L' &&
-            static_cast<char>(data->at(i + 1)) == 'I' && static_cast<char>(data->at(i + 2)) == 'S' &&
-            static_cast<char>(data->at(i + 3)) == 'T') {
+        if (i + 8 <= data.size() && static_cast<char>(data.at(i)) == 'L' &&
+            static_cast<char>(data.at(i + 1)) == 'I' && static_cast<char>(data.at(i + 2)) == 'S' &&
+            static_cast<char>(data.at(i + 3)) == 'T') {
             std::cout << "> Found 'LIST' at " << i;
             i += 4;
             auto length = read32BitUnsignedIntegerLE(data, i);
@@ -353,16 +350,16 @@ AniFileInformation readAniFileInformation(const std::shared_ptr<std::vector<uint
             i -= 1;
             continue;
         }
-        if (i + 4 <= data->size() && static_cast<char>(data->at(i)) == 'f' &&
-            static_cast<char>(data->at(i + 1)) == 'r' && static_cast<char>(data->at(i + 2)) == 'a' &&
-            static_cast<char>(data->at(i + 3)) == 'm') {
+        if (i + 4 <= data.size() && static_cast<char>(data.at(i)) == 'f' &&
+            static_cast<char>(data.at(i + 1)) == 'r' && static_cast<char>(data.at(i + 2)) == 'a' &&
+            static_cast<char>(data.at(i + 3)) == 'm') {
             std::cout << "> Found 'fram' at " << i << std::endl;
             i += 4;
             i -= 1;
             continue;
         }
         throw std::runtime_error("PARSE PROBLEM: Unexpected input detected at pos " + std::to_string(
-                                     i) + " ('" + static_cast<char>(data->at(i)) + "')");
+                                     i) + " ('" + static_cast<char>(data.at(i)) + "')");
     }
     return aniFileInformation;
 }
@@ -393,36 +390,36 @@ inline void endianSwap(unsigned int &x)
  *   > {chunkLength Bytes=chunkData}
  *   > {4 Bytes=crc}
  */
-void printPngInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
+void printPngInformation(const std::vector<uint8_t> &data)
 {
-    if (8 >= data->size()) {
+    if (8 >= data.size()) {
         std::cout << "> No png header found (too small)" << std::endl;
         return;
     }
-    if (!(data->at(0) == 137 && data->at(1) == 80 && data->at(2) == 78 && data->at(3) == 71 &&
-          data->at(4) == 13 && data->at(5) == 10 && data->at(6) == 26 && data->at(7) == 10)) {
+    if (!(data.at(0) == 137 && data.at(1) == 80 && data.at(2) == 78 && data.at(3) == 71 &&
+          data.at(4) == 13 && data.at(5) == 10 && data.at(6) == 26 && data.at(7) == 10)) {
         std::cout << "> No png header found (leading 8 bytes incorrect)" << std::endl;
         return;
     }
     std::cout <<             "Position | Size | Purpose     | Content [png data header]" << std::endl;
-    std::cout << 0  << "       | 1    | 137         | '" << static_cast<int>(data->at(
+    std::cout << 0  << "       | 1    | 137         | '" << static_cast<int>(data.at(
                   0)) << "'" << std::endl;
-    std::cout << 1  << "       | 1    | 80          | '" << static_cast<int>(data->at(
+    std::cout << 1  << "       | 1    | 80          | '" << static_cast<int>(data.at(
                   1)) << "'" << std::endl;
-    std::cout << 2  << "       | 1    | 78          | '" << static_cast<int>(data->at(
+    std::cout << 2  << "       | 1    | 78          | '" << static_cast<int>(data.at(
                   2)) << "'" << std::endl;
-    std::cout << 3  << "       | 1    | 71          | '" << static_cast<int>(data->at(
+    std::cout << 3  << "       | 1    | 71          | '" << static_cast<int>(data.at(
                   3)) << "'" << std::endl;
-    std::cout << 4  << "       | 1    | 13          | '" << static_cast<int>(data->at(
+    std::cout << 4  << "       | 1    | 13          | '" << static_cast<int>(data.at(
                   4)) << "'" << std::endl;
-    std::cout << 5  << "       | 1    | 10          | '" << static_cast<int>(data->at(
+    std::cout << 5  << "       | 1    | 10          | '" << static_cast<int>(data.at(
                   5)) << "'" << std::endl;
-    std::cout << 6  << "       | 1    | 26          | '" << static_cast<int>(data->at(
+    std::cout << 6  << "       | 1    | 26          | '" << static_cast<int>(data.at(
                   6)) << "'" << std::endl;
-    std::cout << 7  << "       | 1    | 10          | '" << static_cast<int>(data->at(
+    std::cout << 7  << "       | 1    | 10          | '" << static_cast<int>(data.at(
                   7)) << "'" << std::endl;
-    for (std::size_t i = 8; i < data->size(); i++) {
-        if (i + 8 < data->size()) {
+    for (std::size_t i = 8; i < data.size(); i++) {
+        if (i + 8 < data.size()) {
             auto chunkSize = static_cast<unsigned int>(read32BitUnsignedIntegerLE(data, i));
             endianSwap(chunkSize);
             const auto chunkDataType = readCharString(data, i + 4, 4);
@@ -431,10 +428,10 @@ void printPngInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
             std::cout << i  <<     "       | 4    | chunk type  | '" << chunkDataType << "'" << std::endl;
             i += 4;
             i += chunkSize;
-            if (i + 4 < data->size()) {
-                std::cout << i  <<     "       | 4    | crc         | '" << static_cast<int>(data->at(
-                              i)) << " " << static_cast<int>(data->at(i + 1)) << " " << static_cast<int>(data->at(
-                                          i + 2)) << " " << static_cast<int>(data->at(i + 3)) << "'" << std::endl;
+            if (i + 4 < data.size()) {
+                std::cout << i  <<     "       | 4    | crc         | '" << static_cast<int>(data.at(
+                              i)) << " " << static_cast<int>(data.at(i + 1)) << " " << static_cast<int>(data.at(
+                                          i + 2)) << " " << static_cast<int>(data.at(i + 3)) << "'" << std::endl;
                 i += 4;
             }
             else if (chunkDataType != "IEND") {
@@ -446,18 +443,18 @@ void printPngInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
     }
 }
 
-void printIcoDirectoryHeaderInformation(const std::shared_ptr<std::vector<uint8_t>> &data,
+void printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
                                         const std::size_t start, const int directoryNumber)
 {
     std::cout <<             "Position | Size | Purpose     | Content [ico directory header #" <<
               directoryNumber << "]" << std::endl;
-    std::cout << start + 0  << "       | 1    | width       | '" << static_cast<int>(data->at(
+    std::cout << start + 0  << "       | 1    | width       | '" << static_cast<int>(data.at(
                   start + 0)) << "'" << std::endl;
-    std::cout << start + 1  << "       | 1    | height      | '" << static_cast<int>(data->at(
+    std::cout << start + 1  << "       | 1    | height      | '" << static_cast<int>(data.at(
                   start + 1)) << "'" << std::endl;
-    std::cout << start + 2  << "       | 1    | colorCount  | '" << static_cast<int>(data->at(
+    std::cout << start + 2  << "       | 1    | colorCount  | '" << static_cast<int>(data.at(
                   start + 2)) << "'" << std::endl;
-    std::cout << start + 3  << "       | 1    | reserved    | '" << static_cast<int>(data->at(
+    std::cout << start + 3  << "       | 1    | reserved    | '" << static_cast<int>(data.at(
                   start + 3)) << "'" << std::endl;
     std::cout << start + 4  << "       | 2    | planes      | '" << read16BitUnsignedIntegerLE(data,
               start + 4) << "'" << std::endl;
@@ -506,7 +503,7 @@ void printIcoDirectoryHeaderInformation(const std::shared_ptr<std::vector<uint8_
  * @brief printIcoDataHeader
  * @param data
  */
-void printIcoInformation(const std::shared_ptr<std::vector<uint8_t>> &data)
+void printIcoInformation(const std::vector<uint8_t> &data)
 {
     // The default header
     std::cout << "Position | Size | Purpose     | Content [ico file header]" << std::endl;

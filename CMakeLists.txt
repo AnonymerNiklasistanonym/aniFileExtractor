@@ -14,9 +14,6 @@ set(VENDOR_DIR_GNUPLOT "${PROJECT_DIR}/gnuplot-iostream")
 # Show or hide exact makefile commands
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-# Packages to find
-find_package(Threads REQUIRED)
-
 # Find all source/header files
 # > Header files
 file(
@@ -158,7 +155,6 @@ if(FORMAT_CODE)
 endif()
 
 add_executable(${PROJECT_NAME} ${PROJECT_MAIN_SOURCE_FILE} ${PROJECT_SOURCE_FILES} ${PROJECT_HEADER_FILES})
-target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads)
 
 # Set library source files compilation flags for different compilers
 target_compile_options(

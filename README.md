@@ -45,6 +45,10 @@ To be able to write this script the following information was researched and is 
 
 ### `.ani` file structure
 
+Sources:
+
+- https://www.gdgsoft.com/anituner/help/aniformat.htm which cites a post by R. James Houghtaling and the website www.wotsit.org by Paul Oliver which is not accessible any more
+
 `.ani` files use the generic `RIFF` container format which means the file starts with `RIFF` which is followed by the type of container which should be `ACON`.
 
 | Offset | 0   | 1   | 2   | 3   | 4   | 5   | 6   | 7   |

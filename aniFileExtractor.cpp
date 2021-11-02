@@ -42,10 +42,14 @@ int main(int argc, const char **argv)
             }
             const auto dataBytes = readBinaryFile(filePath);
             const auto aniFileInformation = readAniFileInformation(dataBytes);
+            std::string x11cursorConfig {};
             for (std::size_t iconCounter = 0; iconCounter < aniFileInformation.icons.size(); iconCounter++) {
                 const auto pngDataNew = aniFileInformation.icons.at(iconCounter);
                 writeBinaryFile(basenameFilePath.string() + "_" + std::to_string(iconCounter) + ".png", pngDataNew);
+                x11cursorConfig.append("TODO 2 4 " + filePath.stem().string() + "_" + std::to_string(
+                                           iconCounter) + ".png TODO\n");
             }
+            writeTextFile(outDir / (filePath.stem().string() + ".cursor"), x11cursorConfig);
         }
     }
     else {

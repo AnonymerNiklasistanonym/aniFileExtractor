@@ -2,7 +2,7 @@
 
 This is a simple and not production ready script to extract images from `.ani` files.
 
-The project has the goal to be a single script which can even convert `.ani` files directly to `.xcf` files so that they can be used on X11 Linux desktop environments.
+The project has the goal to be a single script which can even convert `.ani` files directly to X11 cursor files so that they can be used on X11 Linux desktop environments.
 
 ## How to compile
 
@@ -150,3 +150,36 @@ TODO
 ### Big/Little Endian numbers
 
 TODO
+
+### X11 cursor files
+
+Sources:
+
+- https://wiki.archlinux.org/title/Xcursorgen
+
+To create (animated and not animated) X11 cursor files:
+
+1. The program [`xcursorgen`](https://wiki.archlinux.org/title/Xcursorgen) is needed
+2. A collection or a single `.png` file
+3. A configuration file `CURSOR_NAME.cursor`:
+
+```txt
+32 2 4 icon.png
+```
+
+or for animated cursors:
+
+```txt
+32 2 4 icon_01.png 50
+32 2 4 icon_02.png 50
+32 2 4 icon_03.png 50
+32 2 4 icon_04.png 50
+```
+
+where the first information is the pixel width/height, the 4th argument is the `.png` file and the last one is the time difference between the images if the cursor is animated.
+
+To create the cursor file the following command needs to be run:
+
+```sh
+xcursorgen CURSOR_NAME.cursor CURSOR_OUTPUT_NAME
+```

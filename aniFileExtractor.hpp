@@ -64,6 +64,25 @@ void writeBinaryFile(const std::filesystem::path &filePath,
 }
 
 /**
+ * @brief Write text file from string to file
+ * @param filePath The filepath of the text file to be written
+ * @param data The string that contains the text data to be written
+ */
+void writeTextFile(const std::filesystem::path &filePath, const std::string &data)
+{
+    std::ofstream textOutputFile(filePath, std::ios::out | std::ios::trunc);
+    if (!textOutputFile.is_open()) {
+        throw std::runtime_error("The file " + filePath.string() + " could not be opened");
+    }
+    textOutputFile.write(data.c_str(), data.size());
+    textOutputFile.close();
+    if constexpr(debug) {
+        std::cout << "> " << filePath << " (size=" << data.size() << ") was successfully written" <<
+                  std::endl;
+    }
+}
+
+/**
  * @brief Read 4 bytes that represent a little endian 32 Bit unsigned number (like a DWORD)
  * @param data The vector that contains the binary data to be written
  * @param start The start index in the vector from which should be read

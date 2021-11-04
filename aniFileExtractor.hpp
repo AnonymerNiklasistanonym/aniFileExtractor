@@ -559,6 +559,13 @@ PngDirectoryHeaderInformation printIcoDirectoryHeaderInformation(const std::vect
     return pngDirectoryHeaderInformation;
 }
 
+struct IcoInformation {
+    std::vector<PngDirectoryHeaderInformation> directoryHeaders = {};
+    std::vector<std::vector<uint8_t>> data = {};
+    uint16_t imageType;
+    uint16_t imageCount;
+};
+
 /**
  * Sources:
  * - https://en.wikipedia.org/wiki/ICO_(file_format)
@@ -596,28 +603,30 @@ PngDirectoryHeaderInformation printIcoDirectoryHeaderInformation(const std::vect
  * @brief printIcoDataHeader
  * @param data
  */
-void printIcoInformation(const std::vector<uint8_t> &data, const std::size_t start)
+IcoInformation printIcoInformation(const std::vector<uint8_t> &data, const std::size_t start)
 {
+    IcoInformation icoInformation;
     // The default header
     std::cout << "| " << padRight("Position", 9,
                                   ' ') << "| Size   | Purpose        | Content [ico file header]" << std::endl;
     std::cout << "| " << padRightNumber(start + 0, 9,
                                         ' ') << "| 2      | reserved       | '" << read16BitUnsignedIntegerLE(data,
                                                 0) << "'" << std::endl;
+    icoInformation.imageType = read16BitUnsignedIntegerLE(data, 2);
     std::cout << "| " << padRightNumber(start + 2, 9,
-                                        ' ') << "| 2      | image type     | '" << read16BitUnsignedIntegerLE(data,
-                                                2) << "'" << std::endl;
-    const auto imageCount = read16BitUnsignedIntegerLE(data, 4);
+                                        ' ') << "| 2      | image type     | '" << icoInformation.imageType << "'" << std::endl;
+    icoInformation.imageCount = read16BitUnsignedIntegerLE(data, 4);
     std::cout << "| " << padRightNumber(start + 4, 9,
-                                        ' ') << "| 2      | image #        | '" << imageCount << "'" << std::endl;
+                                        ' ') << "| 2      | image #        | '" << icoInformation.imageCount << "'" << std::endl;
     // The directory headers
-    std::vector<PngDirectoryHeaderInformation> pngDirectoryHeaders(imageCount);
-    for (int i = 0; i < imageCount; i++) {
-        pngDirectoryHeaders.at(i) = printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);
+    icoInformation.directoryHeaders.resize(icoInformation.imageCount);
+    for (int i = 0; i < icoInformation.imageCount; i++) {
+        icoInformation.directoryHeaders.at(i) = printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);
     }
-    for (std::size_t i = 0; i < pngDirectoryHeaders.size(); i++) {
-        std::cout << "| " << padRightNumber(start + pngDirectoryHeaders.at(i).imageOffset, 9,
-                                            ' ') << "| " << padRightNumber(start + pngDirectoryHeaders.at(i).bytesInRes, 6,
+    for (std::size_t i = 0; i < icoInformation.directoryHeaders.size(); i++) {
+        std::cout << "| " << padRightNumber(start + icoInformation.directoryHeaders.at(i).imageOffset, 9,
+                                            ' ') << "| " << padRightNumber(start + icoInformation.directoryHeaders.at(i).bytesInRes, 6,
                                                     ' ') << " | image data #" << padRightNumber(i, 2, ' ') << " | TODO" << std::endl;
     }
+    return icoInformation;
 }

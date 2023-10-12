@@ -1,21 +1,34 @@
 # aniFileExtractor
 
-This is a simple and not production ready script to extract images from `.ani` files.
+This is a simple and not production ready script to extract images/information from `.ani` files.
 
-The project has the goal to be a single script which can even convert `.ani` files directly to X11 cursor files so that they can be used on X11 Linux desktop environments.
+The project has the goal to be a single script which can even convert `.ani` files directly to `.cursor` files so that they can be used on (some) Linux desktop environments.
 
 ## How to compile
 
+### CMake
+
 ```sh
-# Build the executable with CMake
 cmake -S . -B build_cmake
-# Use the following line instead for formatting it and doing a static code check
-#cmake -S . -B build_cmake -DCHECK_CODE=ON -DFORMAT_CODE=ON
 cmake --build build_cmake
-# Build the executable with gcc
-g++ aniFileExtractor.cpp -I ./ -std=c++2a -o aniFileExtractor
-# Build the executable with clang
+```
+
+Use the following line for formatting the source code and doing a static code check:
+
+```sh
+cmake -S . -B build_cmake -DCHECK_CODE=ON -DFORMAT_CODE=ON
+```
+
+### Clang
+
+```sh
 clang++ aniFileExtractor.cpp -I ./ -std=c++20 -o aniFileExtractor
+```
+
+### GCC
+
+```sh
+g++ aniFileExtractor.cpp -I ./ -std=c++23 -o aniFileExtractor
 ```
 
 ## Current project state
@@ -23,18 +36,27 @@ clang++ aniFileExtractor.cpp -I ./ -std=c++20 -o aniFileExtractor
 You can currently extract the saved image information in `.ani` files:
 
 ```sh
+#                   .ani file    directory for the extracted icon images
+#                       |        and .cursor file:
+#                                "test/out_test_images/test_{NUMBER}.png"
+#                                "test/out_test_images/test_template.cursor"
+#                       |                  |
+#                     input              output
+#                       |                  |
 ./aniFileExtractor test/test.ani test/out_test_images
-# Creates a directory "test/out_test_images" in which all icon files in
-# "test/test.ani" are saved as "test/out_test_images/test_{NUMBER}.png"
 ```
 
 Currently these files cannot be read by most programs because of a bad header which is something that needs to be figured out.
-Nonetheless many thumbnail programs and [gThumb](https://wiki.gnome.org/Apps/Gthumb) as well as viewnor can open it.
-With [gThumb](https://wiki.gnome.org/Apps/Gthumb) you can even export the image to a different format and thus *fix* the bad header.
+Nonetheless many thumbnail programs and [`gThumb`](https://wiki.gnome.org/Apps/Gthumb) can open it without issues.
+With [`gThumb`](https://wiki.gnome.org/Apps/Gthumb) you can even export the image to a different format and thus *fix* the bad header.
 
 You can also output some information about `.png` and `.ico` files assuming they have a header that fits the researched standard (which is probably not happening in real life for all files):
 
 ```sh
+#               file type  image file
+#                   |          |
+#                   |        input
+#                   |          |
 ./aniFileExtractor png test/test.png
 ./aniFileExtractor ico test/test.ico
 ```

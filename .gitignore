@@ -37,3 +37,4 @@ out*
 
 # IDE files
 .vscode/settings.json
+run.log

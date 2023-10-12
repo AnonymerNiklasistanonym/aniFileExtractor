@@ -1,33 +1,34 @@
 // Inspired by https://github.com/Mastermindzh/Scripts/blob/master/c%2B%2B/ani2png.c
 
 #include "aniFileExtractor.hpp"
+#include "printFileInformation.hpp"
 
 int main(int argc, const char **argv)
 {
     std::string filePathString;
     if (argc >= 1) {
-        filePathString = argv[1];
+        filePathString = { argv[1] };
     }
     if (argc == 3) {
         if (filePathString == "ani") {
-            //filePathString = argv[2];
-            //const auto dataBytes = readBinaryFile(filePathString);
+            filePathString = { argv[2] };
+            const auto dataBytes = readBinaryFile(filePathString);
             // Print ani information
-            //printAniInformation(dataBytes);
+            printAniInformation(dataBytes);
         } else if (filePathString == "ico") {
-            filePathString = argv[2];
+            filePathString = { argv[2] };
             const auto dataBytes = readBinaryFile(filePathString);
             // Print ico information
             printIcoInformation(dataBytes, 0);
         } else  if (filePathString == "png") {
-            filePathString = argv[2];
+            filePathString = { argv[2] };
             const auto dataBytes = readBinaryFile(filePathString);
             // Print png information
             printPngInformation(dataBytes, 0);
         } else {
             // Assume that the images and other information should be extracted
             // into a separate directory
-            const std::filesystem::path outDir = argv[2];
+            const std::filesystem::path outDir = { argv[2] };
             if (!std::filesystem::exists(outDir)) {
                 std::filesystem::create_directory(outDir);
             }

@@ -204,15 +204,14 @@ struct AniFileInformation {
  */
 AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
 {
-    AniFileInformation aniFileInformation;
+    AniFileInformation aniFileInformation {};
     // Check for RIFF at the begin of the data
     if (8 <= data.size() && readCharString(data, 0, 4) == "RIFF") {
         aniFileInformation.riffDataLength = read32BitUnsignedIntegerLE(data, 4);
         if constexpr(debug) {
             std::cout << "> RIFF header was found at " << 0 << std::endl;
         }
-    }
-    else {
+    } else {
         throw std::runtime_error(".ani data did not start with RIFF container name and length");
     }
     if (12 <= data.size() && readCharString(data, 8, 4) == "ACON") {
@@ -220,8 +219,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
         if constexpr(debug) {
             std::cout << "> Found RIFF field 'ACON' at " << 8 << std::endl;
         }
-    }
-    else {
+    } else {
         throw std::runtime_error(".ani data did not have the ACON field in the RIFF container");
     }
     for (std::size_t i = 12; i < data.size(); i ++) {
@@ -234,8 +232,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
             if (i + length <= data.size()) {
                 aniFileInformation.name = readCharString(data, i, length);
                 i += length;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'INAM' data");
             }
             if constexpr(debug) {
@@ -253,8 +250,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
             if (i + length <= data.size()) {
                 aniFileInformation.art = readCharString(data, i, length);
                 i += length;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'IART' data");
             }
             if constexpr(debug) {
@@ -277,8 +273,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
                 }
                 aniFileInformation.icons.push_back(iconData);
                 i += length;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'icon' data");
             }
             i -= 1;
@@ -297,8 +292,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
                     std::cout << ">> 'seq ' content: '" << seqContent << "'" << std::endl;
                 }
                 i += length;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'seq ' data");
             }
             i -= 1;
@@ -317,8 +311,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
                     std::cout << ">> 'rate' content: '" << seqContent << "'" << std::endl;
                 }
                 i += length;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'rate' data");
             }
             i -= 1;
@@ -352,8 +345,7 @@ AniFileInformation readAniFileInformation(const std::vector<uint8_t> &data)
                 i += 4;
                 aniFileInformation.flags = read32BitUnsignedIntegerLE(data, i);
                 i += 4;
-            }
-            else {
+            } else {
                 throw std::runtime_error("Unexpected end of file while reading 'anih' data");
             }
             i -= 1;
@@ -495,8 +487,7 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
                                                             i)) << " " << static_cast<int>(data.at(i + 1)) << " " << static_cast<int>(data.at(
                                                                     i + 2)) << " " << static_cast<int>(data.at(i + 3)) << "'" << std::endl;
                 i += 4;
-            }
-            else if (chunkDataType != "IEND") {
+            } else if (chunkDataType != "IEND") {
                 std::cout << "crc value missing since the data is too short" << std::endl;
             }
             // +4 because of the crc value

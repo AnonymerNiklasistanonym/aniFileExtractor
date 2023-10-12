@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(aniFileExtractor VERSION 1.0.0 LANGUAGES CXX)
+project(aniFileExtractor VERSION 1.1.0 LANGUAGES CXX)
 
 # Set important paths
 set(PROJECT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -114,7 +114,6 @@ if(FORMAT_CODE)
             --suffix=none
             --pad-oper
             --unpad-paren
-            --break-closing-brackets
             --align-pointer=name
             --align-reference=name
             --indent-preproc-define
@@ -127,7 +126,6 @@ if(FORMAT_CODE)
             --min-conditional-indent=0
             --indent=spaces=4
             --close-templates
-            --add-brackets
             --break-after-logical
             --max-code-length=100
             ${PROJECT_MAIN_SOURCE_FILE}
@@ -178,8 +176,8 @@ target_compile_options(
 )
 
 # Set C++ version for the project
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
-target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_20)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 23)
+target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_23)
 
 # Set Debug post fix to differentiate a debug and release executable
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")

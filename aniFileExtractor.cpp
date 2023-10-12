@@ -14,20 +14,17 @@ int main(int argc, const char **argv)
             //const auto dataBytes = readBinaryFile(filePathString);
             // Print ani information
             //printAniInformation(dataBytes);
-        }
-        else if (filePathString == "ico") {
+        } else if (filePathString == "ico") {
             filePathString = argv[2];
             const auto dataBytes = readBinaryFile(filePathString);
             // Print ico information
             printIcoInformation(dataBytes, 0);
-        }
-        else  if (filePathString == "png") {
+        } else  if (filePathString == "png") {
             filePathString = argv[2];
             const auto dataBytes = readBinaryFile(filePathString);
             // Print png information
             printPngInformation(dataBytes, 0);
-        }
-        else {
+        } else {
             // Assume that the images and other information should be extracted
             // into a separate directory
             const std::filesystem::path outDir = argv[2];
@@ -45,14 +42,15 @@ int main(int argc, const char **argv)
             for (std::size_t iconCounter = 0; iconCounter < aniFileInformation.icons.size(); iconCounter++) {
                 const auto pngDataNew = aniFileInformation.icons.at(iconCounter);
                 const auto icoInformation = printIcoInformation(pngDataNew, 0);
-                writeBinaryFile(imageOutputFilePathPrefix.string() + "_" + std::to_string(iconCounter) + ".ico", pngDataNew);
-                x11cursorConfigTemplate.append(std::to_string(icoInformation.directoryHeaders.at(0).width) + " 2 4 " + filePath.stem().string() + "_" + std::to_string(
-                                           iconCounter) + ".png TODO_MS\n");
+                writeBinaryFile(imageOutputFilePathPrefix.string() + "_" + std::to_string(iconCounter) + ".ico",
+                                pngDataNew);
+                x11cursorConfigTemplate.append(std::to_string(icoInformation.directoryHeaders.at(
+                                                   0).width) + " 2 4 " + filePath.stem().string() + "_" + std::to_string(
+                                                   iconCounter) + ".png TODO_MS\n");
             }
             writeTextFile(outDir / (filePath.stem().string() + "_template.cursor"), x11cursorConfigTemplate);
         }
-    }
-    else {
+    } else {
         std::cout << "$ ani2png FILE.ani PNG_FILE_OUTPUT_DIR\n"
                   << "$ ani2png ani FILE.ani\n"
                   << "$ ani2png ico FILE.ico\n"

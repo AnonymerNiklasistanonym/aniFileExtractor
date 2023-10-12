@@ -7,24 +7,18 @@ int main(int argc, const char **argv)
 {
     std::string filePathString;
     if (argc >= 1) {
-        filePathString = { argv[1] };
+        filePathString =  argv[1] ;
     }
     if (argc == 3) {
         if (filePathString == "ani") {
-            filePathString = { argv[2] };
-            const auto dataBytes = readBinaryFile(filePathString);
-            // Print ani information
-            printAniInformation(dataBytes);
+            filePathString =  argv[2] ;
+            printAniInformation(readBinaryFile(filePathString));
         } else if (filePathString == "ico") {
-            filePathString = { argv[2] };
-            const auto dataBytes = readBinaryFile(filePathString);
-            // Print ico information
-            printIcoInformation(dataBytes, 0);
+            filePathString =  argv[2] ;
+            printIcoInformation(readBinaryFile(filePathString), 0);
         } else  if (filePathString == "png") {
-            filePathString = { argv[2] };
-            const auto dataBytes = readBinaryFile(filePathString);
-            // Print png information
-            printPngInformation(dataBytes, 0);
+            filePathString =  argv[2] ;
+            printPngInformation(readBinaryFile(filePathString), 0);
         } else {
             // Assume that the images and other information should be extracted
             // into a separate directory

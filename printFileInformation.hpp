@@ -4,7 +4,6 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <variant>
 
 #include "aniFileExtractor.hpp"
 
@@ -34,23 +33,24 @@ std::string padRightNumber(const U &numberToPad, const std::size_t padLength,
     return padRight(ss.str(), padLength, padCharacter);
 }
 
-using PrintTableColumnDataInternal = std::tuple<std::string, std::vector<std::uint8_t>>;
-using PrintTableColumnData = std::variant<std::string, PrintTableColumnDataInternal>;
-using PrintTableColumn = std::tuple<std::size_t, std::size_t, std::string, PrintTableColumnData>;
+enum class PrintTableColumnDataType {
+    HIDE, NONE, CHAR, INT, UINT_16, UINT_32, UINT_32_BE
+};
+using PrintTableColumn =
+    std::tuple<const std::size_t, const std::size_t, const std::string, const PrintTableColumnDataType>;
 
-std::string tableColumnDataToStr(const PrintTableColumnData &data)
+std::string tableColumnDataToStr(const std::size_t start, const std::size_t size,
+                                 const PrintTableColumnDataType dataType,
+                                 const std::vector<std::uint8_t> &dataRaw)
 {
-    if (std::holds_alternative<std::string>(data)) {
-        return std::get<std::string>(data);
-    }
-    const auto dataInternal = std::get<PrintTableColumnDataInternal>(data);
-    const auto dataType = std::get<0>(dataInternal);
-    const auto dataRaw = std::get<1>(dataInternal);
     std::stringstream ss {};
-    if (dataType != "-") {
+    if (dataType == PrintTableColumnDataType::HIDE) {
+        return "";
+    }
+    if (dataType != PrintTableColumnDataType::NONE) {
         ss << "'";
-        for (const auto &dataRawElement : dataRaw) {
-            ss << static_cast<int>(dataRawElement) << " ";;
+        for (std::size_t i = start; i < start + size; i++) {
+            ss << static_cast<int>(dataRaw.at(i)) << " ";;
         }
         if (dataRaw.size() > 0) {
             ss.seekp(-1, std::ios_base::end);
@@ -58,33 +58,30 @@ std::string tableColumnDataToStr(const PrintTableColumnData &data)
         ss << "' -> ";
     }
     ss << "'";
-    if (dataType == "32Bit unsigned int") {
-        if (dataRaw.size() < 4) {
+    if (dataType == PrintTableColumnDataType::UINT_32) {
+        if (dataRaw.size() < start + 4) {
             throw std::runtime_error("32Bit unsigned int BE data must contain 4 byte");
         }
-        ss << static_cast<unsigned int>(read32BitUnsignedIntegerLE(dataRaw, 0));
-    } else if (dataType == "32Bit unsigned int BE") {
-        if (dataRaw.size() < 4) {
+        ss << static_cast<unsigned int>(read32BitUnsignedIntegerLE(dataRaw, start));
+    } else if (dataType == PrintTableColumnDataType::UINT_32_BE) {
+        if (dataRaw.size() < start + 4) {
             throw std::runtime_error("32Bit unsigned int BE data must contain 4 byte");
         }
-        auto finalNum = static_cast<unsigned int>(read32BitUnsignedIntegerLE(dataRaw, 0));
+        auto finalNum = static_cast<unsigned int>(read32BitUnsignedIntegerLE(dataRaw, start));
         endianSwap(finalNum);
         ss << finalNum;
-    } else if (dataType == "16Bit unsigned int") {
-        if (dataRaw.size() < 2) {
+    } else if (dataType == PrintTableColumnDataType::UINT_16) {
+        if (dataRaw.size() < start + 2) {
             throw std::runtime_error("16Bit unsigned int LE data must contain 4 byte");
         }
-        ss << static_cast<unsigned int>(read16BitUnsignedIntegerLE(dataRaw, 0));
+        ss << static_cast<unsigned int>(read16BitUnsignedIntegerLE(dataRaw, start));
     } else {
-        for (const auto &dataRawElement : dataRaw) {
-            if (dataType == "-") {
-                ss << static_cast<int>(dataRawElement) << " ";
+        for (std::size_t i = start; i < start + size; i++) {
+            if (dataType == PrintTableColumnDataType::NONE || dataType == PrintTableColumnDataType::INT) {
+                ss << static_cast<int>(dataRaw.at(i)) << " ";
             }
-            if (dataType == "int") {
-                ss << static_cast<int>(dataRawElement) << " ";
-            }
-            if (dataType == "char") {
-                ss << static_cast<char>(dataRawElement) << " ";
+            if (dataType == PrintTableColumnDataType::CHAR) {
+                ss << static_cast<char>(dataRaw.at(i)) << " ";
             }
         }
         if (dataRaw.size() > 0) {
@@ -92,13 +89,33 @@ std::string tableColumnDataToStr(const PrintTableColumnData &data)
         }
     }
     ss << "'";
-    if (dataType != "-") {
-        ss << " (" << dataType << ")";
+    if (dataType != PrintTableColumnDataType::NONE) {
+        auto dataTypeStr = "unknown";
+        switch (dataType) {
+            case PrintTableColumnDataType::CHAR:
+                dataTypeStr = "char";
+                break;
+            case PrintTableColumnDataType::INT:
+                dataTypeStr = "int";
+                break;
+            case PrintTableColumnDataType::UINT_16:
+                dataTypeStr = "16Bit unsigned int";
+                break;
+            case PrintTableColumnDataType::UINT_32:
+                dataTypeStr = "32Bit unsigned int";
+                break;
+            case PrintTableColumnDataType::UINT_32_BE:
+                dataTypeStr = "32Bit unsigned int BE";
+                break;
+            default:
+                break;
+        }
+        ss << " (" << dataTypeStr << ")";
     }
     return ss.str();
 }
 
-void printTable(const std::vector<PrintTableColumn> &columns)
+void printTable(const std::vector<PrintTableColumn> &columns, const std::vector<std::uint8_t> &data)
 {
     const std::tuple<std::string, std::string, std::string, std::string> header {"Position", "Size", "Purpose", "Data" };
     // Calculate padding information
@@ -110,7 +127,8 @@ void printTable(const std::vector<PrintTableColumn> &columns)
         maxLengthPosition = std::max(maxLengthPosition, std::to_string(std::get<0>(column)).length());
         maxLengthSize = std::max(maxLengthSize, std::to_string(std::get<1>(column)).length());
         maxLengthPurpose = std::max(maxLengthPurpose, std::get<2>(column).length());
-        maxLengthData = std::max(maxLengthData, tableColumnDataToStr(std::get<3>(column)).length());
+        maxLengthData = std::max(maxLengthData, tableColumnDataToStr(std::get<0>(column),
+                                 std::get<1>(column), std::get<3>(column), data).length());
     }
     std::cout << "| " << padRight(std::get<0>(header), maxLengthPosition, ' ')
               << " | " << padRight(std::get<1>(header), maxLengthSize, ' ')
@@ -124,7 +142,8 @@ void printTable(const std::vector<PrintTableColumn> &columns)
         std::cout << "| " << padRightNumber(std::get<0>(column), maxLengthPosition, ' ')
                   << " | " << padRightNumber(std::get<1>(column), maxLengthSize, ' ')
                   << " | " << padRight(std::get<2>(column), maxLengthPurpose, ' ')
-                  << " | " << padRight(tableColumnDataToStr(std::get<3>(column)), maxLengthData,
+                  << " | " << padRight(tableColumnDataToStr(std::get<0>(column), std::get<1>(column),
+                                       std::get<3>(column), data), maxLengthData,
                                        ' ') << " |" << std::endl;
     }
 }
@@ -159,7 +178,7 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
     }
 
     std::vector<PrintTableColumn> table {};
-    table.emplace_back(std::tuple{ start + 0, 8, "PNG signature", std::tuple{ "-", std::vector(&data[start + 0], &data[start + 8]) } });
+    table.emplace_back(std::tuple{ start + 0, 8, "PNG signature", PrintTableColumnDataType::NONE });
 
     for (std::size_t i = start + 8; i < data.size(); i++) {
         if (i + 8 < data.size()) {
@@ -167,16 +186,16 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
             endianSwap(chunkSize);
             const auto chunkDataType = readCharString(data, i + 4, 4);
 
-            table.emplace_back(std::tuple{ i, 4, "chunk size (only data)", std::tuple{"32Bit unsigned int BE", std::vector(&data[i], &data[i + 4]) } });
+            table.emplace_back(std::tuple{ i, 4, "chunk size (only data)", PrintTableColumnDataType::UINT_32_BE });
             i += 4;
-            table.emplace_back(std::tuple{ i, 4, "chunk type", std::tuple{"char", std::vector(&data[i], &data[i + 4]) } });
+            table.emplace_back(std::tuple{ i, 4, "chunk type", PrintTableColumnDataType::CHAR });
             i += 4;
             if (chunkSize > 0) {
-                table.emplace_back(std::tuple{ i, chunkSize, "chunk data", "TODO" });
+                table.emplace_back(std::tuple{ i, chunkSize, "chunk data", PrintTableColumnDataType::HIDE });
                 i += chunkSize;
             }
             if (i + 4 < data.size()) {
-                table.emplace_back(std::tuple{ i, 4, "crc (Cyclic Redundancy Check)", std::tuple{ "-", std::vector(&data[i], &data[i + 4]) } });
+                table.emplace_back(std::tuple{ i, 4, "crc (Cyclic Redundancy Check)", PrintTableColumnDataType::NONE });
                 i += 4;
             } else if (chunkDataType != "IEND") {
                 std::cout << "crc value missing since the data is too short" << std::endl;
@@ -185,7 +204,7 @@ void printPngInformation(const std::vector<uint8_t> &data, const std::size_t sta
         }
     }
 
-    printTable(table);
+    printTable(table, data);
 }
 
 struct PngDirectoryHeaderInformation {
@@ -198,7 +217,7 @@ struct PngDirectoryHeaderInformation {
     uint16_t imageOffset;
 };
 
-std::tuple<PngDirectoryHeaderInformation, const std::vector<PrintTableColumn>>
+std::tuple<PngDirectoryHeaderInformation, std::vector<PrintTableColumn>>
         printIcoDirectoryHeaderInformation(const std::vector<uint8_t> &data,
                 const std::size_t start, const int directoryNumber)
 {
@@ -206,20 +225,20 @@ std::tuple<PngDirectoryHeaderInformation, const std::vector<PrintTableColumn>>
     PngDirectoryHeaderInformation pngDirectoryHeaderInformation;
     std::string imgNum = " image #" + std::to_string(directoryNumber);
     pngDirectoryHeaderInformation.width = data.at(start + 0);
-    table.emplace_back(std::tuple{ start + 0, 1, "width" + imgNum, std::tuple{ "int", std::vector{ pngDirectoryHeaderInformation.width } } });
+    table.emplace_back(std::tuple{ start + 0, 1, "width" + imgNum, PrintTableColumnDataType::INT });
     pngDirectoryHeaderInformation.height = data.at(start + 1);
-    table.emplace_back(std::tuple{ start + 1, 1, "height" + imgNum, std::tuple{ "int", std::vector{ pngDirectoryHeaderInformation.height } } });
+    table.emplace_back(std::tuple{ start + 1, 1, "height" + imgNum, PrintTableColumnDataType::INT });
     pngDirectoryHeaderInformation.colorCount = data.at(start + 2);
-    table.emplace_back(std::tuple{ start + 2, 1, "colorCount", std::tuple{ "int", std::vector{ pngDirectoryHeaderInformation.colorCount } } });
-    table.emplace_back(std::tuple{ start + 3, 1, "reserved", std::tuple{ "int", std::vector{ data.at(start + 3) } } });
+    table.emplace_back(std::tuple{ start + 2, 1, "colorCount", PrintTableColumnDataType::INT });
+    table.emplace_back(std::tuple{ start + 3, 1, "reserved", PrintTableColumnDataType::INT });
     pngDirectoryHeaderInformation.planes = read16BitUnsignedIntegerLE(data, start + 4);
-    table.emplace_back(std::tuple{ start + 4, 2, "planes", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 4], &data[start + 6]) } });
+    table.emplace_back(std::tuple{ start + 4, 2, "planes", PrintTableColumnDataType::UINT_16 });
     pngDirectoryHeaderInformation.bitCount = read16BitUnsignedIntegerLE(data, start + 6);
-    table.emplace_back(std::tuple{ start + 6, 2, "bitCount", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 6], &data[start + 8]) } });
+    table.emplace_back(std::tuple{ start + 6, 2, "bitCount", PrintTableColumnDataType::UINT_16 });
     pngDirectoryHeaderInformation.bytesInRes = read16BitUnsignedIntegerLE(data, start + 8);
-    table.emplace_back(std::tuple{ start + 8, 2, "bytesInRes", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 8], &data[start + 10]) } });
+    table.emplace_back(std::tuple{ start + 8, 2, "bytesInRes", PrintTableColumnDataType::UINT_16 });
     pngDirectoryHeaderInformation.imageOffset = read16BitUnsignedIntegerLE(data, start + 12);
-    table.emplace_back(std::tuple{ start + 12, 2, "imageOffset", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 12], &data[start + 14]) } });
+    table.emplace_back(std::tuple{ start + 12, 2, "imageOffset", PrintTableColumnDataType::UINT_16 });
 
     return { pngDirectoryHeaderInformation, table };
 }
@@ -273,26 +292,27 @@ IcoInformation printIcoInformation(const std::vector<uint8_t> &data, const std::
     std::vector<PrintTableColumn> table {};
     IcoInformation icoInformation;
     // The default header
-    table.emplace_back(std::tuple{ start + 0, 2, "reserved", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 0], &data[start + 2]) } });
+    table.emplace_back(std::tuple{ start + 0, 2, "reserved", PrintTableColumnDataType::UINT_16 });
 
     icoInformation.imageType = read16BitUnsignedIntegerLE(data, 2);
-    table.emplace_back(std::tuple{ start + 2, 2, "imageType", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 2], &data[start + 4]) } });
+    table.emplace_back(std::tuple{ start + 2, 2, "imageType", PrintTableColumnDataType::UINT_16 });
     icoInformation.imageCount = read16BitUnsignedIntegerLE(data, 4);
-    table.emplace_back(std::tuple{ start + 4, 2, "imageCount", std::tuple{ "16Bit unsigned int", std::vector(&data[start + 4], &data[start + 6]) } });
+    table.emplace_back(std::tuple{ start + 4, 2, "imageCount", PrintTableColumnDataType::UINT_16 });
 
     // The directory headers
     icoInformation.directoryHeaders.resize(icoInformation.imageCount);
     for (int i = 0; i < icoInformation.imageCount; i++) {
         const auto icoDirHeaderInformation = printIcoDirectoryHeaderInformation(data, 6 + (i * 16), i);
         icoInformation.directoryHeaders.at(i) = std::get<0>(icoDirHeaderInformation);
-        table.insert(table.end(), std::get<1>(icoDirHeaderInformation).begin(),
-                     std::get<1>(icoDirHeaderInformation).end());
+        for (std::size_t j = 0; j < std::get<1>(icoDirHeaderInformation).size(); j++) {
+            table.emplace_back(std::get<1>(icoDirHeaderInformation).at(j));
+        }
     }
     for (std::size_t i = 0; i < icoInformation.directoryHeaders.size(); i++) {
-        table.emplace_back(std::tuple{ start + icoInformation.directoryHeaders.at(i).imageOffset, start + icoInformation.directoryHeaders.at(i).bytesInRes, "image data #" + std::to_string(i), "TODO" });
+        table.emplace_back(std::tuple{ start + icoInformation.directoryHeaders.at(i).imageOffset, start + icoInformation.directoryHeaders.at(i).bytesInRes, "image data #" + std::to_string(i), PrintTableColumnDataType::HIDE });
     }
 
-    printTable(table);
+    printTable(table, data);
 
     return icoInformation;
 }
@@ -339,24 +359,25 @@ void printAniInformation(const std::vector<uint8_t> &data)
     }
 
     std::size_t i = 0;
-    table.emplace_back(std::tuple{ i, 4, "RIFF", std::tuple{"char", std::vector(&data[i], &data[i + 4]) } });
+    table.emplace_back(std::tuple{ i, 4, "RIFF", PrintTableColumnDataType::CHAR });
+
     i += 4;
     const auto fileSize = read16BitUnsignedIntegerLE(data, i);
-    table.emplace_back(std::tuple{ i, 4, "fileSize", std::tuple{ "32Bit unsigned int", std::vector(&data[i], &data[i + 4]) } });
+    table.emplace_back(std::tuple{ i, 4, "fileSize", PrintTableColumnDataType::UINT_32 });
     i += 4;
-    table.emplace_back(std::tuple{ i, 4, "ACON", std::tuple{"char", std::vector(&data[i], &data[i + 4]) } });
+    table.emplace_back(std::tuple{ i, 4, "ACON", PrintTableColumnDataType::CHAR });
     i += 4;
     std::size_t chunkCounter = 0;
     while (i < fileSize - static_cast<std::size_t>(4)) {
-        table.emplace_back(std::tuple{ i, 4, "chunk id #" + std::to_string(chunkCounter), std::tuple{"char", std::vector(&data[i], &data[i + 4]) } });
+        table.emplace_back(std::tuple{ i, 4, "chunk id #" + std::to_string(chunkCounter), PrintTableColumnDataType::CHAR });
         i += 4;
         const auto chunkSize = read16BitUnsignedIntegerLE(data, i);
-        table.emplace_back(std::tuple{ i, 4, "chunk size #" + std::to_string(chunkCounter), std::tuple{ "32Bit unsigned int", std::vector(&data[i], &data[i + 4]) } });
+        table.emplace_back(std::tuple{ i, 4, "chunk size #" + std::to_string(chunkCounter), PrintTableColumnDataType::UINT_32 });
         i += 4;
-        table.emplace_back(std::tuple{ i, chunkSize, "chunk data #" + std::to_string(chunkCounter), "TODO" });
+        table.emplace_back(std::tuple{ i, chunkSize, "chunk data #" + std::to_string(chunkCounter), PrintTableColumnDataType::HIDE });
         i += chunkSize;
         chunkCounter += 1;
     }
 
-    printTable(table);
+    printTable(table, data);
 }
